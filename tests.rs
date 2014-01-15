@@ -2,6 +2,7 @@
 use cpu::Cpu;
 use mem::Mem;
 use a2::AppleII;
+use diskii::DiskController;
 
 //
 
@@ -37,9 +38,12 @@ fn test_a2()
 {
     let mut a2 = AppleII::new();
     a2.read_roms();
+    let mut dc: DiskController = DiskController::new();
+    dc.load_disk(0, "JUNK4.DSK");
+    a2.set_slot(6, ~dc);
     let mut cpu = Cpu::new(a2);
     cpu.reset();
-    for i in range(0,100) {
+    for i in range(0,100000) {
         cpu.step();
     }
 }

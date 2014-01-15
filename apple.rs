@@ -18,7 +18,7 @@ pub mod util;
 pub mod cpu;
 pub mod mem;
 pub mod a2;
-//pub mod diskii;
+pub mod diskii;
 
 mod tests;
 

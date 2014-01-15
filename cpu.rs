@@ -297,7 +297,7 @@ macro_rules! decode_op {
             // No operation
             0xea => $this.nop(),
 
-            _ => fail!("unimplemented or illegal instruction")
+            _ => warn!("unimplemented or illegal instruction")
         }
     }
 }

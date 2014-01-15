@@ -6,9 +6,6 @@ static GR_TXMODE:  int = 1;
 static GR_MIXMODE: int = 2;
 static GR_PAGE1:   int = 4;
 static GR_HIRES:   int = 8;
-static DBG_CPU:    int = 1;
-static DBG_RDMEM:  int = 2;
-static DBG_WRMEM:  int = 4;
 
 static HW_LO:	   u16 = 0xC000;
 static ROM_LO: 	   u16 = 0xD000;
@@ -143,6 +140,11 @@ impl AppleII
        nreads: 0
     } }
     
+    pub fn set_slot(&mut self, slot: uint, p: ~Peripheral)
+    {
+      self.slots[slot] = Some(p);
+    }
+    
     fn noise(&mut self) -> u8 { self.mem[self.nreads & 0xffff] }
     
     fn setGrSwitch(&mut self, addr: u16)
@@ -173,6 +175,7 @@ impl AppleII
     
     fn doIO(&mut self, addr: u16, val: u8) -> u8
     {
+       debug!("doIO({:x}, {:x})", addr, val);
        let slot = (addr >> 4) & 0x0f;
        match slot {
           0	=> self.kbdlatch,			// keyboard

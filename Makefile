@@ -1,6 +1,6 @@
 
 test:
-	rustc -o appletest --test apple.rs
+	rustc -Z debug-info -o appletest --test apple.rs
 	./appletest
 	
 
