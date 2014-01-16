@@ -2,14 +2,14 @@
 use mem::Mem;
 use util::Xorshift;
 
-static GR_TXMODE:  int = 1;
-static GR_MIXMODE: int = 2;
-static GR_PAGE1:   int = 4;
-static GR_HIRES:   int = 8;
+pub static GR_TXMODE:  u8 = 1;
+pub static GR_MIXMODE: u8 = 2;
+pub static GR_PAGE1:   u8 = 4;
+pub static GR_HIRES:   u8 = 8;
 
-static HW_LO:	   u16 = 0xC000;
-static ROM_LO: 	   u16 = 0xD000;
-static ROM_LEN:	   u16 = 0x3000;
+pub static HW_LO:	   u16 = 0xC000;
+pub static ROM_LO: 	   u16 = 0xD000;
+pub static ROM_LEN:	   u16 = 0x3000;
 
 pub trait Peripheral
 {
@@ -58,7 +58,7 @@ pub struct AppleII
     
    debugflags: int,
    kbdlatch: u8,
-   grswitch: u16,
+   grswitch: u8,
    soundstate: bool,
    aux: LangCardState,
    nreads: u16 // counts # of reads for noise() fn
