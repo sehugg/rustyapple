@@ -19,15 +19,13 @@ struct Drive
 {
    disk_data: RawDiskData,		 // disk data
    track_data: RawTrackData,	// array of track data
-   track: uint,			// current track # 
+   half_track: uint,			// current track # 
    track_index: uint,		 // position of read head along track
 }
 
-static NoDisk: Option<Drive> = None;
-
 pub struct DiskController
 {
-   drives: [Option<Drive>, ..NUM_DRIVES],
+   drives: [Option<~Drive>, ..NUM_DRIVES],
    selected: u8,		// selected drive (0 or 1)
    motor: bool,		// is motor on?
    read_mode: bool,
@@ -37,7 +35,7 @@ pub struct DiskController
 impl DiskController
 {
    pub fn new() -> DiskController { DiskController {
-      drives: [NoDisk, NoDisk],
+      drives: [None, None],
       selected: 0,
       motor: false,
       read_mode: false,
@@ -55,14 +53,19 @@ impl DiskController
          f.read(disk_image[track]);
          disk_data[track] = nibblizeTrack(254, track as u8, disk_image);
       }
-      self.drives[disknum] = Some(Drive {
+      self.drives[disknum] = Some(~Drive {
          disk_data: disk_data,
          track_data: [0, ..RAW_TRACK_SIZE],
-         track: 0,
+         half_track: NUM_TRACKS+1,
          track_index: 0,
       });
-      debug!("loaded disk image {}", imagefilename);
-                  
+      assert!(self.has_disk(disknum));
+      info!("loaded disk image {} into drive {}", imagefilename, disknum);
+   }
+   
+   pub fn has_disk(&self, disknum: int) -> bool
+   {
+      return self.drives[disknum].is_some();
    }
 
 //   fn drive<'r>(&'r self) -> &'r Option<~Drive> { &self.drives[self.selected] }
@@ -72,21 +75,21 @@ impl Drive
 {
    fn read_latch(&mut self) -> u8
    {
-      debug!("read latch @ {:x} track {}", self.track_index, self.track)
+      debug!("read latch @ {:x} track*2 {}", self.track_index, self.half_track)
       self.track_index = (self.track_index + 1) % RAW_TRACK_SIZE;
       return self.track_data[self.track_index];
    }
 
    fn write_latch(&mut self, value: u8)
    {
-      debug!("write latch @ {:x} track {}", self.track_index, self.track)
+      debug!("write latch @ {:x} track*2 {}", self.track_index, self.half_track)
       self.track_index = (self.track_index + 1) % RAW_TRACK_SIZE;
       self.track_data[self.track_index] = value;
    }
 
    fn servo_phase(&mut self, phase: uint)
    {
-      let mut new_track = self.track;
+      let mut new_track = self.half_track;
 
       // if new phase is even and current phase is odd
       if (phase == ((new_track - 1) & 3))
@@ -108,8 +111,8 @@ impl Drive
       } else {
          // TODO: self.track_data = None;
       }
-      self.track = new_track;
-      debug!("phase {:x} track = {}", phase, self.track as f32*0.5);
+      self.half_track = new_track;
+      info!("phase {:x} track = {}", phase, self.half_track as f32*0.5);
    }
 }
 
@@ -127,8 +130,8 @@ impl Peripheral for DiskController
 
    fn doIO(&mut self, addr: u16, val: u8) -> u8
    {
-      //debug!("disk IO {:x} -> {:x}", addr, val);
-      let &mut drive = &self.drives[self.selected];
+      let ref mut drive = self.drives[self.selected];
+      debug!("disk {} IO {:x} -> {:x} {}", self.selected, addr, val, drive.is_some());
       match addr & 0xf
       {
          /*
@@ -138,7 +141,7 @@ impl Peripheral for DiskController
           * considered to be adjacent.  The previous phase number can be
           * computed as the track number % 4.
           */
-         1|3|5|7 if drive.is_some() => { drive.unwrap().servo_phase(((addr>>1) & 3) as uint); }
+         1|3|5|7 if drive.is_some() => { drive.get_mut_ref().servo_phase(((addr>>1) & 3) as uint); }
             /*
              * Turn drive motor off.
              */
@@ -162,7 +165,7 @@ impl Peripheral for DiskController
             /*
              * Read a disk byte if read mode is active.
              */
-         0xc if self.read_mode && drive.is_some() => { return drive.unwrap().read_latch(); }
+         0xc if self.read_mode && drive.is_some() => { return drive.get_mut_ref().read_latch(); }
             /*
              * Select read mode and read the write protect status.
              */
@@ -171,15 +174,14 @@ impl Peripheral for DiskController
              * Write a disk byte if write mode is active and the disk is not
              * write protected.
              */
-         0xd if !self.read_mode && !self.write_protect && drive.is_some() => { drive.unwrap().write_latch(val); }
+         0xd if !self.read_mode && !self.write_protect && drive.is_some() => { drive.get_mut_ref().write_latch(val); }
             /*
              * Read the write protect status only.
              */
          0xd if self.write_protect => { return 0x80; }
-         0xd => { return 0; }
-         _ => { return 0; }
+         _ => { }
       }
-      return 0; //emu.noise();
+      return val;
    }
 
 
@@ -327,7 +329,7 @@ impl Peripheral for DiskController
          let startindex = skewing_table[sector] as uint << 8;
          return nibblizeSector(vol, trk, sector as u8, disk[trk].slice(startindex, startindex+256));
       }).concat_vec();
-      debug!("track {} converted to {:x} raw bytes", trk, arr.len());
+      info!("track {} converted to {:x} raw bytes", trk, arr.len());
       assert!(arr.len() == RAW_SECTOR_SIZE*16);
       let mut fixarr: RawTrackData = [0xff_u8, ..RAW_TRACK_SIZE];
       for i in range(0, arr.len())

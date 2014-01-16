@@ -68,7 +68,6 @@ impl Mem for AppleII
 {
     fn loadb(&mut self, addr: u16) -> u8
     {
-       debug!("Read {:x}", addr);
        self.nreads += 1;
        let val =
       // see if it's from main memory (0x0000-0xbfff)
@@ -84,7 +83,8 @@ impl Mem for AppleII
       }
       // it must be an I/O location (0xc000-0xcfff)
       else if (addr < HW_LO + 0x100) {
-         self.doIO(addr, 0)
+         let noise = self.noise(); // when reading, pass noise as value (we might get it back)
+         self.doIO(addr, noise)
       } else {
          match self.slots[(addr >> 8) & 7] {
             None    => self.noise(),
@@ -97,7 +97,7 @@ impl Mem for AppleII
     
     fn storeb(&mut self, addr: u16, val: u8)
     {
-       debug!("write {:x} = {:x}", addr, val);
+       debug!("Write {:x} = {:x}", addr, val);
       // see if it's from main memory (0x0000-0xbfff)
       if (addr < HW_LO)
       {
@@ -140,9 +140,11 @@ impl AppleII
        nreads: 0
     } }
     
-    pub fn set_slot(&mut self, slot: uint, p: ~Peripheral)
+    pub fn set_slot(&mut self, slot: uint, mut p: ~Peripheral)
     {
+      //p.doIO(0,0);
       self.slots[slot] = Some(p);
+      //self.slots[slot].get_mut_ref().doIO(0,0);
     }
     
     fn noise(&mut self) -> u8 { self.mem[self.nreads & 0xffff] }
@@ -237,6 +239,6 @@ impl AppleII
       use std::vec::bytes::copy_memory;
       let ap2rom = File::open(&Path::new("apple2.rom")).read_bytes(0x3000);
       copy_memory(self.mem.mut_slice(0xd000, 0xd000+0x3000), ap2rom);
-      debug!("loaded apple2.rom");
+      info!("loaded apple2.rom");
    }
 }
