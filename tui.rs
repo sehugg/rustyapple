@@ -53,9 +53,14 @@ fn draw_text_line(a2: &AppleII, buf: &mut Buffer, flash: bool, y: uint)
       }
      // if the char. changed, draw it
      let ch = (b & 0x7f) as char;
-     let cell = lazyterm::TermCell { fg:lazyterm::WHITE, bg:lazyterm::BLACK, ch:ch };
-     buf.set(x, y, cell);
-    //drawTextChar(x, y, b & 0x7f, invert);
+     let mut cell = if !invert {
+       lazyterm::TermCell { bg:lazyterm::BLACK, fg:lazyterm::WHITE, ch:ch }
+     } else {
+       lazyterm::TermCell { bg:lazyterm::WHITE, fg:lazyterm::BLACK, ch:ch }
+     };
+     buf.set(x*2, y, cell);
+     cell.ch = ' ';
+     buf.set(x*2+1, y, cell);
   }
 }
 
@@ -79,7 +84,7 @@ fn main()
     cpu.reset();
     
     let mut term = Terminal::new();
-    let mut buf = Buffer::new(40,24);
+    let mut buf = Buffer::new(80,24);
     
     // mismatched types: expected `<generic integer #5>` but found `<generic float #0>`
     let speedup = 2;

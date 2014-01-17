@@ -21,6 +21,7 @@ pub static BLACK: u8 = 0;
 pub static WHITE: u8 = 15;
 
 pub static EMPTY: TermCell = TermCell { fg:WHITE, bg:BLACK, ch:' ' };
+pub static UNKNOWN: TermCell = TermCell { fg:255, bg:255, ch:'\uffff' };
 
 #[deriving(Clone)]
 pub struct Buffer
@@ -50,6 +51,8 @@ pub struct Terminal
   lastbuf: Buffer,
 }
 
+static NEXTLINE: &'static str = "\r\x1b[1B";
+  
 impl Terminal
 {
   pub fn new() -> Terminal
@@ -65,32 +68,31 @@ impl Terminal
   fn update(&mut self, buf: &Buffer)
   {
       let ref mut hout = self.hout;
-      let mut prev = EMPTY;
+      let mut prev = UNKNOWN;
       for y in range(0,buf.height)
       {
+        let mut blanks = 0;
         for x in range(0,buf.width)
         {
           let cell = buf.buf[y][x];
           let last = self.lastbuf.buf[y][x];
-          let mut dirty = false;
-          if (cell.fg != prev.fg)
+          let dirty = cell.fg != prev.fg || cell.bg != prev.bg || cell.ch != last.ch;
+          if (dirty)
           {
+            if blanks > 0
+            {
+              hout.write_str(format!("\x1b[{}C", blanks));
+              blanks = 0;
+            }
             hout.write_str(format!("\x1b[38;5;{}m", cell.fg));
-            dirty = true;
-          }
-          if (cell.bg != prev.bg)
-          {
             hout.write_str(format!("\x1b[48;5;{}m", cell.bg));
-            dirty = true;
-          }
-          // TODO
-          //if (dirty || cell.ch != last.ch)
-          {
             hout.write_char(cell.ch);
+          } else {
+            blanks += 1;
           }
           prev = cell;
         }
-        hout.write_char('\n');
+        hout.write_str(NEXTLINE);
       }
   }
 
@@ -106,7 +108,7 @@ impl Terminal
           hout.write_str(format!("\x1b[48;5;{}m", cell.bg));
           hout.write_char(cell.ch);
         }
-        hout.write_char('\n');
+        hout.write_str(NEXTLINE);
       }
   }
 
@@ -118,9 +120,11 @@ impl Terminal
       // scroll up N lines
       self.hout.write_str(format!("\x1b[{}A", buf.height));
       // update dirty cells
-      self.update(buf);
+      // TODO: self.update(buf);
+      self.redraw(buf);
     } else {
       // redraw entire window
+      for i in range(0,buf.height) { self.hout.write_str("\n"); }
       // TODO: rescroll window
       self.redraw(buf);
     }
