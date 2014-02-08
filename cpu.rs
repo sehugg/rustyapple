@@ -50,12 +50,12 @@ static CYCLE_TABLE: [u8, ..256] = [
 //
 
 struct Regs {
-    a: u8,
-    x: u8,
-    y: u8,
-    s: u8,
-    flags: u8,
-    pc: u16
+    pub a: u8,
+    pub x: u8,
+    pub y: u8,
+    pub s: u8,
+    pub flags: u8,
+    pub pc: u16
 }
 
 impl Regs {

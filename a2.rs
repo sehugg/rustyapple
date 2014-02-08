@@ -238,7 +238,12 @@ impl AppleII
       use std::io::File;
       use std::vec::bytes::copy_memory;
       let ap2rom = File::open(&Path::new("apple2.rom")).read_bytes(0x3000);
-      copy_memory(self.mem.mut_slice(0xd000, 0xd000+0x3000), ap2rom);
-      info!("loaded apple2.rom");
+      match ap2rom {
+       Ok(rom) => {
+        copy_memory(self.mem.mut_slice(0xd000, 0xd000+0x3000), rom);
+        info!("loaded apple2.rom");
+       }
+       Err(e) => fail!(e)
+      }
    }
 }
